@@ -23,7 +23,7 @@
       const TOGGLE_TODO = "TOGGLE_TODO";
       const ADD_GOAL = "ADD_GOAL";
       const REMOVE_GOAL = "REMOVE_GOAL";
-      const RCEIVE_DATA = "RCEIVE_DATA";
+      const RECEIVE_DATA = "RECEIVE_DATA";
       function addTodoAction(todo) {
         return {
           type: ADD_TODO,
@@ -55,14 +55,13 @@
         };
       }
 
- function receiveDataAction (todos, goals){
-     return {
-         type: RCEIVE_DATA,
-         todos,
-         goals,
-     }
-
- }
+      function receiveDataAction(todos, goals) {
+        return {
+          type: RECEIVE_DATA,
+          todos,
+          goals,
+        };
+      }
 
       function todos(state = [], action) {
         switch (action.type) {
@@ -76,8 +75,8 @@
                 ? todo
                 : Object.assign({}, todo, { complete: !todo.complete })
             );
-          case RCEIVE_DATA:
-            return action.todos
+          case RECEIVE_DATA:
+            return action.todos;
           default:
             return state;
         }
@@ -88,12 +87,23 @@
             return state.concat([action.goal]);
           case REMOVE_GOAL:
             return state.filter((goal) => goal.id !== action.id);
-          case RCEIVE_DATA:ADD_GOAL
-            return action.goals  
+          case RECEIVE_DATA:
+            ADD_GOAL;
+            return action.goals;
           default:
             return state;
         }
       }
+
+      function loading(state = true, action) {
+        switch (action.type) {
+          case RECEIVE_DATA:
+            return false;
+          default:
+            return state;
+        }
+      }
+
       const checker = (store) => (next) => (action) => {
         if (
           action.type === ADD_TODO &&
@@ -121,6 +131,7 @@
         Redux.combineReducers({
           todos,
           goals,
+          loading,
         }),
         Redux.applyMiddleware(checker, logger)
       );
@@ -217,19 +228,22 @@
         // When the app loads, console.log all of the todos and all of the goals that reside in our fake database
         componentDidMount() {
           const { store } = this.props;
-          Promise.all([
-              API.fetchTodos(),
-              API.fetchGoals()
-            ]).then(([todos, goals])=> {
-                // console.log('Todos', todos)
-                // console.log('Goals', goals)
-                store.dispatch(receiveDataAction(todos,goals))})
+          Promise.all([API.fetchTodos(), API.fetchGoals()]).then(
+            ([todos, goals]) => {
+              // console.log('Todos', todos)
+              // console.log('Goals', goals)
+              store.dispatch(receiveDataAction(todos, goals));
+            }
+          );
 
           store.subscribe(() => this.forceUpdate());
         }
         render() {
           const { store } = this.props;
-          const { todos, goals } = store.getState();
+          const { todos, goals, loading } = store.getState();
+          if (loading===true){
+              return<h3>Loading ...</h3>
+          }
           return (
             <div>
               <Todos todos={todos} store={this.props.store} />
