@@ -7,6 +7,7 @@
     <script src="https://unpkg.com/react-dom@16.3.0-alpha.1/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
     <script src="https://tylermcginnis.com/goals-todos-api/index.js"></script>
+    <script src="https://unpkg.com/redux-thunk@2.2.0/dist/redux-thunk.min.js"></script>
   </head>
   <body>
     <div id="app"></div>
@@ -58,8 +59,22 @@
       function receiveDataAction(todos, goals) {
         return {
           type: RECEIVE_DATA,
+          // Return object
           todos,
           goals,
+        };
+      }
+
+      //Handels logic for API with OU
+      function handleDeleteTodo(todo) {
+        return (dispatch) => {
+          //Return function
+          dispatch(removeTodoAction(todo.id));
+
+          return API.deleteTodo(todo.id).catch(() => {
+            dispatch(addTodoAction(todo));
+            alert("An error occurred. Try again.");
+          });
         };
       }
 
@@ -122,12 +137,21 @@
       };
       const logger = (store) => (next) => (action) => {
         console.group(action.type);
-        console.log("The action: ", action);
-        const result = next(action);
-        console.log("The new state: ", store.getState());
+          console.log("The action: ", action);
+          const result = next(action);
+          console.log("The new state: ", store.getState());
         console.groupEnd();
         return result;
       };
+
+      const thunk = (store) => (next) => (action) => {
+        if (typeof action === 'function') {
+        return action(store.dispatch)
+        };
+        return next(action)
+      }
+
+
       const store = Redux.createStore(
         Redux.combineReducers({
           todos,
@@ -135,7 +159,7 @@
           // add new property to combine reducers. then add loading to render
           loading,
         }),
-        Redux.applyMiddleware(checker, logger)
+        Redux.applyMiddleware(thunk, checker, logger)
       );
     </script>
     <script type="text/babel">
@@ -162,17 +186,19 @@
         addItem = (e) => {
           e.preventDefault();
           // Adding new todo item, we are not doing Optimistic Update
+          // removing and toggling, doing these actions optimistically. So we're assuming the change will succeed correctly on the server, so we update the UI immediately, and then only roll back to the original state if the API returns an error.
           //this.input.value - new value to be returned
-          return API.saveTodo(this.input.value)
-          //wen the function resolves we can get a new item = todo from server that we can add to the state of the store
-          .then((todo) => {
-            this.props.store.dispatch(addTodoAction(todo))
-            this.input.value = ''
-          })
-          .catch(() => {
-            alert('There was an error. Try again.')
-          })
-
+          return (
+            API.saveTodo(this.input.value)
+              //wen the function resolves we can get a new item = todo from server that we can add to the state of the store
+              .then((todo) => {
+                this.props.store.dispatch(addTodoAction(todo));
+                this.input.value = "";
+              })
+              .catch(() => {
+                alert("There was an error. Try again.");
+              })
+          );
 
           //In below code we are updating to do on a UI side, ths dosn't make sence so we rewrite code as above
           // .then((todo) => {
@@ -182,7 +208,6 @@
           // .catch(() => {
           //   alert('There was an error. Try again.')
           // })
-
 
           const name = this.input.value;
           this.input.value = "";
@@ -194,32 +219,41 @@
             })
           );
         };
+
+        // Remove all code below as it mixing our component-specific code with the API-specific code
         //Optimistic Updates
         // when the remove item is invoked
+        // removeItem = (todo) => {
+        //   //we remove the item if there is an issue we return an error and then return back the item
+        //   this.props.store.dispatch(removeTodoAction(todo.id));
+        //   //Update not only UI but also a DB
+        //   //Do not wate untill dispatch, update UI immediately
+        //   return API.deleteTodo(todo.id)
+        //   .catch(() => {
+        //     //if there is an error -> return back item
+        //     this.props.store.dispatch(addTodoAction(todo));
+        //     alert("An error occurred. Try again.");
+        //     //do the same for goals
+        //   });
+        // };
+
+        //Action creator for Thunk
         removeItem = (todo) => {
-          //we remove the item if there is an issue we return an error and then return back the item
-          this.props.store.dispatch(removeTodoAction(todo.id));
-          //Update not only UI but also a DB
-          //Do not wate untill dispatch, update UI immediately
-          return API.deleteTodo(todo.id).catch(() => {
-            //if there is an error -> return back item
-            this.props.store.dispatch(addTodoAction(todo));
-            alert("An error occurred. Try again.");
-            //do the same for goals
-          });
+          // moved logic to handleDeleteTodo, dispatch single action
+          this.props.store.dispatch(handleDeleteTodo(todo));
         };
-        //Optimistic Update
+
+        //Optimistic Update below is code befor OU
         // toggleItem = (id) => {
         //   this.props.store.dispatch(toggleTodoAction(id));
         //   return API.saveTodoToggle
         // };
-
+        // Code after OU
         toggleItem = (id) => {
           this.props.store.dispatch(toggleTodoAction(id));
-          return API.saveTodoToggle(id)
-          .catch(() => {
+          return API.saveTodoToggle(id).catch(() => {
             this.props.store.dispatch(toggleTodoAction(id));
-            alert ('An error occured.Try again.')
+            alert("An error occured.Try again.");
           });
         };
         render() {
@@ -245,17 +279,19 @@
         addItem = (e) => {
           e.preventDefault();
           //
-          return API.saveGoal(this.input.value)
-          // Wen resolves API gives new goal  .then((goal)
-          .then((goal) => {
-            //invoke 
-            this.props.store.dispatch(addGoalAction(goal))
-            //reset input string
-            this.input.value = ''
-          })
-          .catch(() => alert('There was an error. Try again.'))
+          return (
+            API.saveGoal(this.input.value)
+              // Wen resolves API gives new goal  .then((goal)
+              .then((goal) => {
+                //invoke
+                this.props.store.dispatch(addGoalAction(goal));
+                //reset input string
+                this.input.value = "";
+              })
+              .catch(() => alert("There was an error. Try again."))
+          );
 
-//Below code replaced with above. Below works only with UI
+          //Below code replaced with above. Below works only with UI
           // const name = this.input.value;
           // this.input.value = "";
           // this.props.store.dispatch(
