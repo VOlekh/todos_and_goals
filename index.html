@@ -94,7 +94,8 @@
             return state;
         }
       }
-
+      // Create new reducer loading
+      //Set default state to true
       function loading(state = true, action) {
         switch (action.type) {
           case RECEIVE_DATA:
@@ -131,6 +132,7 @@
         Redux.combineReducers({
           todos,
           goals,
+          // add new property to combine reducers. then add loading to render
           loading,
         }),
         Redux.applyMiddleware(checker, logger)
@@ -159,6 +161,29 @@
       class Todos extends React.Component {
         addItem = (e) => {
           e.preventDefault();
+          // Adding new todo item, we are not doing Optimistic Update
+          //this.input.value - new value to be returned
+          return API.saveTodo(this.input.value)
+          //wen the function resolves we can get a new item = todo from server that we can add to the state of the store
+          .then((todo) => {
+            this.props.store.dispatch(addTodoAction(todo))
+            this.input.value = ''
+          })
+          .catch(() => {
+            alert('There was an error. Try again.')
+          })
+
+
+          //In below code we are updating to do on a UI side, ths dosn't make sence so we rewrite code as above
+          // .then((todo) => {
+          //   this.props.store.dispatch(addTodoAction(todo))
+          //   this.input.value = ''
+          // })
+          // .catch(() => {
+          //   alert('There was an error. Try again.')
+          // })
+
+
           const name = this.input.value;
           this.input.value = "";
           this.props.store.dispatch(
@@ -169,11 +194,33 @@
             })
           );
         };
+        //Optimistic Updates
+        // when the remove item is invoked
         removeItem = (todo) => {
+          //we remove the item if there is an issue we return an error and then return back the item
           this.props.store.dispatch(removeTodoAction(todo.id));
+          //Update not only UI but also a DB
+          //Do not wate untill dispatch, update UI immediately
+          return API.deleteTodo(todo.id).catch(() => {
+            //if there is an error -> return back item
+            this.props.store.dispatch(addTodoAction(todo));
+            alert("An error occurred. Try again.");
+            //do the same for goals
+          });
         };
+        //Optimistic Update
+        // toggleItem = (id) => {
+        //   this.props.store.dispatch(toggleTodoAction(id));
+        //   return API.saveTodoToggle
+        // };
+
         toggleItem = (id) => {
           this.props.store.dispatch(toggleTodoAction(id));
+          return API.saveTodoToggle(id)
+          .catch(() => {
+            this.props.store.dispatch(toggleTodoAction(id));
+            alert ('An error occured.Try again.')
+          });
         };
         render() {
           return (
@@ -197,17 +244,33 @@
       class Goals extends React.Component {
         addItem = (e) => {
           e.preventDefault();
-          const name = this.input.value;
-          this.input.value = "";
-          this.props.store.dispatch(
-            addGoalAction({
-              id: generateId(),
-              name,
-            })
-          );
+          //
+          return API.saveGoal(this.input.value)
+          // Wen resolves API gives new goal  .then((goal)
+          .then((goal) => {
+            //invoke 
+            this.props.store.dispatch(addGoalAction(goal))
+            //reset input string
+            this.input.value = ''
+          })
+          .catch(() => alert('There was an error. Try again.'))
+
+//Below code replaced with above. Below works only with UI
+          // const name = this.input.value;
+          // this.input.value = "";
+          // this.props.store.dispatch(
+          //   addGoalAction({
+          //     id: generateId(),
+          //     name,
+          //   })
+          // );
         };
         removeItem = (goal) => {
           this.props.store.dispatch(removeGoalAction(goal.id));
+          return API.deleteGoal(goal.id).catch(() => {
+            this.props.store.dispatch(addGoalAction(goal));
+            alert("An error occurred. Try again.");
+          });
         };
         render() {
           return (
@@ -240,9 +303,10 @@
         }
         render() {
           const { store } = this.props;
+          //Update render with loading
           const { todos, goals, loading } = store.getState();
-          if (loading===true){
-              return<h3>Loading ...</h3>
+          if (loading === true) {
+            return <h3>Loading ...</h3>;
           }
           return (
             <div>
