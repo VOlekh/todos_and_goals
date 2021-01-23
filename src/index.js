@@ -1,8 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
-import App from '../App';
-import reportWebVitals from '../reportWebVitals';
+import App from './components/App'
 import reducer from './reducers'
 import middleware from './middleware'
 import { Provider } from 'react-redux'
@@ -29,6 +28,6 @@ ReactDOM.render(
     </Provider>,
   document.getElementById('root')
 ) 
-export default connect((state) => ({
-    loading: state.loading,
-  }))(App);
+// export default connect((state) => ({
+//     loading: state.loading,
+//   }))(App);
